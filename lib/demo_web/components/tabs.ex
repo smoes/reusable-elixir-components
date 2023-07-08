@@ -10,7 +10,7 @@ defmodule DemoWeb.Components.Tabs do
   end
 
   defmodule State do
-    defstruct [:active_id, :tabs]
+    defstruct [:active_id, :tabs, :maybe_inner_state]
 
     alias __MODULE__
 
@@ -25,13 +25,17 @@ defmodule DemoWeb.Components.Tabs do
   end
 
   def update(assigns, socket) do
+    maybe_state = Map.get(assigns, :state)
+
     unless initialized?(socket) do
       tabs = make_tabs(assigns.tab)
       active = hd(tabs).id
-      state = %State{active_id: active, tabs: tabs}
+      state = %State{active_id: active, tabs: tabs, maybe_inner_state: maybe_state}
       {:ok, socket |> assign(:state, state)}
     else
-      {:ok, socket}
+      state = socket.assigns.state
+      updated_state = %State{state | maybe_inner_state: maybe_state}
+      {:ok, socket |> assign(:state, updated_state)}
     end
   end
 
@@ -58,7 +62,7 @@ defmodule DemoWeb.Components.Tabs do
         <% end %>
       </div>
       <div>
-        <%= render_slot(@state |> State.active_slot()) %>
+        <%= render_slot(@state |> State.active_slot(), @state.maybe_inner_state) %>
       </div>
     </div>
     """
