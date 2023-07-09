@@ -10,7 +10,7 @@ defmodule DemoWeb.Components.Tabs do
   end
 
   defmodule State do
-    defstruct [:active_id, :tabs, :maybe_inner_state, :uri]
+    defstruct [:id, :active_id, :tabs, :maybe_inner_state, :uri]
 
     alias __MODULE__
 
@@ -72,30 +72,30 @@ defmodule DemoWeb.Components.Tabs do
   end
 
   def handle_event("change_tab", %{"id" => raw_id}, socket) do
-    uri = socket.assigns.state.uri
-    new_uri = put_param(uri, "tabs", raw_id)
+    state = socket.assigns.state
+    new_uri = put_param(state.uri, state.id |> Atom.to_string(), raw_id)
     {:noreply, socket |> push_patch(to: URI.to_string(new_uri))}
   end
 
-  def init(socket) do
+  def init(socket, opts \\ []) do
+    id = Keyword.get(opts, :id, :tabs)
+    id_str = Atom.to_string(id)
+
     socket
-    |> assign(:tabs, %State{})
-    |> attach_hook(:tabs_hook, :handle_params, fn params, uri, socket ->
-      state = socket.assigns.tabs
+    |> assign(id, %State{id: id})
+    |> attach_hook(:"#{id}_hook", :handle_params, fn params, uri, socket ->
+      state = Map.get(socket.assigns, id)
       parsed_uri = URI.parse(uri)
 
-      if Map.has_key?(params, "tabs") do
-        tabs = Map.get(params, "tabs") |> String.to_existing_atom()
-        next_state = %State{state | uri: parsed_uri, active_id: tabs}
-        {:cont, socket |> assign(:tabs, next_state)}
-      else
-        next_state = %State{state | uri: parsed_uri}
-        {:cont, socket |> assign(:tabs, next_state)}
-      end
+      tab =
+        if Map.has_key?(params, id_str) do
+          Map.get(params, id_str) |> String.to_existing_atom()
+        end
+
+      next_state = %State{state | uri: parsed_uri, active_id: tab}
+      {:cont, socket |> assign(id, next_state)}
     end)
   end
-
-  defp initialized?(socket), do: Map.has_key?(socket.assigns, :state)
 
   defp make_tabs(slots),
     do: Enum.map(slots, fn slot -> %Tab{id: slot.id, label: slot.label, slot: slot} end)
