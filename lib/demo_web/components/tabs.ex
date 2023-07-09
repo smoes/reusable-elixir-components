@@ -10,7 +10,7 @@ defmodule DemoWeb.Components.Tabs do
   end
 
   defmodule State do
-    defstruct [:id, :active_id, :tabs, :maybe_inner_state, :uri]
+    defstruct [:id, :active_id, :tabs, :maybe_inner_state, :uri, :inform_parent?]
 
     alias __MODULE__
 
@@ -74,6 +74,11 @@ defmodule DemoWeb.Components.Tabs do
   def handle_event("change_tab", %{"id" => raw_id}, socket) do
     state = socket.assigns.state
     new_uri = put_param(state.uri, state.id |> Atom.to_string(), raw_id)
+
+    if state.inform_parent? do
+      send(self(), {:tab_changed, state.id, raw_id |> String.to_existing_atom()})
+    end
+
     {:noreply, socket |> push_patch(to: URI.to_string(new_uri))}
   end
 
@@ -81,8 +86,10 @@ defmodule DemoWeb.Components.Tabs do
     id = Keyword.get(opts, :id, :tabs)
     id_str = Atom.to_string(id)
 
+    inform_parent? = Keyword.get(opts, :inform_parent?, false)
+
     socket
-    |> assign(id, %State{id: id})
+    |> assign(id, %State{id: id, inform_parent?: inform_parent?})
     |> attach_hook(:"#{id}_hook", :handle_params, fn params, uri, socket ->
       state = Map.get(socket.assigns, id)
       parsed_uri = URI.parse(uri)
