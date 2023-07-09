@@ -82,6 +82,12 @@ defmodule DemoWeb.Components.Tabs do
     {:noreply, socket |> push_patch(to: URI.to_string(new_uri))}
   end
 
+  def put_active(socket, tab, id \\ :tabs) do
+    state = Map.get(socket.assigns, id)
+    uri = put_param(state.uri, id |> Atom.to_string(), tab |> Atom.to_string())
+    push_patch(socket, to: URI.to_string(uri))
+  end
+
   def init(socket, opts \\ []) do
     id = Keyword.get(opts, :id, :tabs)
     id_str = Atom.to_string(id)
